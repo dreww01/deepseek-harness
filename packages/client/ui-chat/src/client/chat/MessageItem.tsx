@@ -2,7 +2,7 @@ import { Fragment, memo, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PendingSubmission } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { MessageImageSource } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { fileExtension, FileTypeIcon, fileSizeText, JsonBlock, projectUserText, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import { fileExtension, FileTypeIcon, fileSizeText, IconChevronDownOutline14, JsonBlock, projectUserText, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewSlotProps } from '../contract/slots.ts'
 import type { ModelRetryNode, TurnErrorNode, UserMessageNode } from '../contract/snapshot.ts'
 import { CompactionItem } from './CompactionItem.tsx'
@@ -15,6 +15,17 @@ type UserFile = Extract<UserMessageNode['content'][number], { type: 'file' }>
 type PresentedAttachment =
   | { readonly type: 'image'; readonly image: MessageImageSource }
   | { readonly type: 'file'; readonly file: UserFile['attachment'] }
+
+const USER_MESSAGE_WORD_LIMIT = 100
+
+function truncateMessageWords(text: string): { readonly text: string; readonly truncated: boolean } {
+  const words = text.trim().split(/\s+/u).filter(Boolean)
+  if (words.length <= USER_MESSAGE_WORD_LIMIT) return { text, truncated: false }
+  return {
+    text: `${words.slice(0, USER_MESSAGE_WORD_LIMIT).join(' ')}\n…`,
+    truncated: true,
+  }
+}
 
 function contentParts(content: readonly unknown[]): {
   text: string
@@ -178,6 +189,9 @@ function UserStyleBubble({
   const { text, attachments: contentAttachments, rest } = contentParts(content)
   const attachments = previewAttachments ?? contentAttachments
   const compactImages = attachments.length > 1
+  const [expanded, setExpanded] = useState(false)
+  const preview = useMemo(() => truncateMessageWords(text), [text])
+  const displayedText = preview.truncated && !expanded ? preview.text : text
   const truncated = (total: number): string => t('json.truncated', { total })
   const showBubble = text !== '' || rest.length > 0
   return (
@@ -214,7 +228,18 @@ function UserStyleBubble({
           </div>
         )}
         {showBubble && <div className={css.bubble}>
-          {projectUserText(text, referenceLabels, skillNames, 'skill', references)}
+          {projectUserText(displayedText, referenceLabels, skillNames, 'skill', references)}
+          {preview.truncated && (
+            <button
+              type="button"
+              className={css.messageDisclosure}
+              aria-expanded={expanded}
+              onClick={() => { setExpanded(value => !value) }}
+            >
+              {t(expanded ? 'message.showLess' : 'message.showMore')}
+              <IconChevronDownOutline14 className={css.messageDisclosureChevron} />
+            </button>
+          )}
           {rest.map((block, i) => <JsonBlock key={i} label={t('message.extraBlock')} payload={block} truncatedLabel={truncated} />)}
         </div>}
         {referenceLabels.length > 0 && (

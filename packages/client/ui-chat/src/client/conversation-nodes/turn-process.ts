@@ -125,6 +125,9 @@ function processSpec(state: TurnProcessState, turn: TurnLocation): TurnProcessSp
   const controlAnchorSeq = state.controlAnchorSeq
   if (controlAnchorSeq === undefined) return null
   const answer = latestAnswer(turn)
+  const durationMs = turn.start === undefined || turn.end === undefined
+    ? 0
+    : Math.max(0, Number(turn.end.time) - Number(turn.start.time))
   const counts = {
     messageCount: answer === null
       ? state.messageCount
@@ -142,6 +145,7 @@ function processSpec(state: TurnProcessState, turn: TurnLocation): TurnProcessSp
       answerAnchorSeq: null,
       answerStep: null,
       inlineReasoning: false,
+      durationMs,
       ...counts,
     }
   }
@@ -163,6 +167,7 @@ function processSpec(state: TurnProcessState, turn: TurnLocation): TurnProcessSp
     answerAnchorSeq: answer.finalNode.seq,
     answerStep: answer.step,
     inlineReasoning,
+    durationMs,
     ...counts,
   }
 }

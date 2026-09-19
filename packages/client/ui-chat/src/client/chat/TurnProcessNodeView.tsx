@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatNodeViewProps } from '../contract/slots.ts'
+import { formatRunDuration } from './message-chrome.ts'
 import css from './TurnProcessNodeView.module.css'
 
 /** Turn-level process disclosure controller. */
@@ -35,9 +36,12 @@ export const TurnProcessNodeView = memo(function TurnProcessNodeView({
       { count: node.data.subagentCount },
     ))
   }
-  const label = labels.length === 0
-    ? t('message.turnProcess.thoughtForAWhile')
-    : labels.join(t('message.turnProcess.separator'))
+  const detail = labels.length === 0 ? null : labels.join(t('message.turnProcess.separator'))
+  const label = node.data.durationMs > 0
+    ? t('message.turnProcess.workedFor', {
+      duration: formatRunDuration(node.data.durationMs, t),
+    })
+    : t('message.turnProcess.thoughtForAWhile')
   return (
     <button
       type="button"
@@ -48,12 +52,14 @@ export const TurnProcessNodeView = memo(function TurnProcessNodeView({
       data-turn-process-tool-calls={node.data.toolCallCount}
       data-turn-process-subagents={node.data.subagentCount}
       aria-expanded={open}
+      aria-label={detail ?? label}
       onClick={(event) => {
         event.currentTarget.focus()
         turnProcess.setOpen(!open)
       }}
     >
       <span className={css.label}>{label}</span>
+      {detail !== null && <span className={css.detail}>{detail}</span>}
       <IconChevronDownOutline14 className={css.chevron} />
     </button>
   )

@@ -9,6 +9,8 @@ export interface TurnProcessSpec {
   readonly answerAnchorSeq: number | null
   readonly answerStep: number | null
   readonly inlineReasoning: boolean
+  /** Elapsed wall time from the Turn's logged start through its logged end. */
+  readonly durationMs: number
   /** Reply-bearing durable Assistant messages before the final answer. */
   readonly messageCount: number
   /** Durable non-subagent Tool calls recorded by this Turn. */
@@ -45,6 +47,7 @@ export function sameTurnProcessSpec(left: TurnProcessSpec, right: TurnProcessSpe
     && left.answerAnchorSeq === right.answerAnchorSeq
     && left.answerStep === right.answerStep
     && left.inlineReasoning === right.inlineReasoning
+    && left.durationMs === right.durationMs
     && left.messageCount === right.messageCount
     && left.toolCallCount === right.toolCallCount
     && left.subagentCount === right.subagentCount

@@ -516,6 +516,30 @@ describe('Chat node rendering', () => {
     expect(h.openFile).toHaveBeenCalledWith('src/index.ts', { line: 24 })
   })
 
+  it('truncates user messages after 100 words and expands on request', () => {
+    const text = Array.from({ length: 101 }, (_, index) => `word-${String(index + 1)}`).join(' ')
+    const h = makeHarness({ nodes: [user(1, text)] })
+    const view = render(<h.ChatView {...h.props} />)
+
+    expect(view.container.textContent).toContain('word-100')
+    expect(view.container.textContent).not.toContain('word-101')
+    const toggle = view.getByRole('button', { name: '显示更多' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+
+    fireEvent.click(toggle)
+    expect(view.container.textContent).toContain('word-101')
+    expect(view.getByRole('button', { name: '收起' }).getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('does not truncate a user message containing exactly 100 words', () => {
+    const text = Array.from({ length: 100 }, (_, index) => `word-${String(index + 1)}`).join(' ')
+    const h = makeHarness({ nodes: [user(1, text)] })
+    const view = render(<h.ChatView {...h.props} />)
+
+    expect(view.container.textContent).toContain('word-100')
+    expect(view.queryByRole('button', { name: '显示更多' })).toBeNull()
+  })
+
   it('threads the injected file-mention vocabulary into the closing prose only', () => {
     const wrote = (seq: number, callId: string): ToolResultNode => ({
       ...toolResult(seq, callId, 'write'),
@@ -1371,6 +1395,7 @@ describe('ChatView', () => {
     })
     const view = render(<h.ChatView {...h.props} />)
     const toggle = view.getByRole('button', { name: '1 次工具调用 · 1 条消息 · 1 个 subagent' })
+    expect(toggle.textContent).toContain('已思考')
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     expect(toggle.getAttribute('data-turn-process-tool-calls')).toBe('1')
     expect(toggle.getAttribute('data-turn-process-messages')).toBe('1')

@@ -33,9 +33,18 @@
 }
 
 .label {
-  min-width: 0;
-  overflow: hidden;
+  flex: none;
   font-size: 14px;
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+.detail {
+  min-width: 0;
+  margin-left: 8px;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
   line-height: 24px;
   text-overflow: ellipsis;
   white-space: nowrap;

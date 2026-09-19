@@ -105,6 +105,8 @@ export interface TurnProcessChatData {
   readonly answerAnchorSeq: number | null
   readonly answerStep: number | null
   readonly inlineReasoning: boolean
+  /** Elapsed wall time from the Turn's logged start through its logged end. */
+  readonly durationMs: number
   readonly messageCount: number
   readonly toolCallCount: number
   readonly subagentCount: number
