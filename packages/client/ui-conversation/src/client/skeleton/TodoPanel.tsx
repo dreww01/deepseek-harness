@@ -124,8 +124,10 @@ export function TodoPanel({ todos, t }: TodoPanelProps) {
 export type TodoDockProps = PropsRuntime<'conversation.input.dock'> & PropsLocale<'conversation'>
 
 /** Renders the current todo projection, or nothing when it is absent. */
-export function TodoDock({ useProjection, t }: TodoDockProps) {
+export function TodoDock({ useProjection, useSession, t }: TodoDockProps) {
+  const running = useSession(s => s.running)
   const todos = useProjection('todos')
+  if (!running) return null
   return <TodoPanel todos={todos ?? []} t={t} />
 }
 

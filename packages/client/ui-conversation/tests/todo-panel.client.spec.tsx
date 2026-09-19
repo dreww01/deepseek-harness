@@ -102,11 +102,17 @@ describe('TodoPanel', () => {
   })
 })
 
-/** Dock props stub: the adapter reads the 'todos' projection only; the rest of the owner share is unused. */
-function dockProps(store: ReturnType<typeof createSnapshotStore<{ value: readonly TodoItem[] | null | undefined }>>): TodoDockProps {
+/** Dock props stub: the adapter reads the 'todos' projection and running status. */
+function dockProps(
+  store: ReturnType<typeof createSnapshotStore<{ value: readonly TodoItem[] | null | undefined }>>,
+  sessionStore?: ReturnType<typeof createSnapshotStore<{ running: boolean }>>,
+): TodoDockProps {
   const useProjection = (_key: string, selector?: (v: unknown) => unknown) =>
     bindSnapshotSelector(store)(s => (selector ?? (v => v))(s.value))
-  return { useProjection, t } as unknown as TodoDockProps
+  const sessStore = sessionStore ?? createSnapshotStore({ running: true })
+  const useSession = (selector: (s: { running: boolean }) => unknown) =>
+    bindSnapshotSelector(sessStore)(selector)
+  return { useProjection, useSession, t } as unknown as TodoDockProps
 }
 
 describe('TodoDock', () => {
@@ -119,6 +125,17 @@ describe('TodoDock', () => {
     expect(screen.getByText('1 已完成 · 1 进行中 · 1 待处理')).toBeTruthy()
     // The pre-first-write whole value (null) retires the strip (the panel owns no data).
     act(() => { store.set({ value: null }) })
+    expect(screen.queryByTestId('todo-panel')).toBeNull()
+  })
+
+  it('hides the todo panel when the agent finishes reasoning/running', () => {
+    const store = createSnapshotStore<{ value: readonly TodoItem[] | null | undefined }>({ value: LIST })
+    const sessionStore = createSnapshotStore({ running: true })
+    render(<TodoDock {...dockProps(store, sessionStore)} />)
+    expect(screen.getByTestId('todo-panel')).toBeTruthy()
+
+    // When reasoning/turn completes, running becomes false -> panel disappears
+    act(() => { sessionStore.set({ running: false }) })
     expect(screen.queryByTestId('todo-panel')).toBeNull()
   })
 
