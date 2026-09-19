@@ -40,6 +40,7 @@ packages/**/__pycache__/
 apps/web/dist/
 .artifacts/
 .dsh-build/
+.dsh-development/
 .playwright-mcp/
 .orig
 .worktrees/

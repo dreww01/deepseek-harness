@@ -40,6 +40,8 @@ pnpm dsh web
 
 `pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding.
 
+Keep an installed runtime and a development checkout separate. An installed launcher, desktop app, or Automator workflow must continue to execute its pinned installation; never redirect it to `apps/cli/lib/bin.js` or another checkout artifact. Source development uses only this checkout: run `pnpm run build`, then `pnpm run dev:dsh -- web`. The development launcher validates required host, client-plugin, CLI, and frontend artifacts before profile boot, uses the checkout-local `.dsh-development` home, defaults Web to port `3081`, and never rewrites an installed launcher. Use `pnpm run dev:web` separately after the complete build when source edits need continuous browser-bundle rebuilding.
+
 ## Community and support
 
 - Submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).

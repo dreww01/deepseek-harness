@@ -44,6 +44,8 @@ pnpm dsh web
 
 `pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。
 
+请将已安装运行时与开发 checkout 严格分开。已安装的启动脚本、桌面应用或 Automator 工作流必须继续执行其固定版本，绝不能改指向 `apps/cli/lib/bin.js` 或其他 checkout 产物。源码开发只在当前 checkout 内进行：先运行 `pnpm run build`，再运行 `pnpm run dev:dsh -- web`。开发启动器会在 profile 启动前检查必需的 Host、Client plugin、CLI 与前端产物，使用 checkout 内独立的 `.dsh-development` 主目录，Web 默认使用 `3081` 端口，并且不会改写任何已安装启动器。完整构建后，如需持续重建浏览器产物，可另行运行 `pnpm run dev:web`。
+
 ## 社区与支持
 
 - 通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
