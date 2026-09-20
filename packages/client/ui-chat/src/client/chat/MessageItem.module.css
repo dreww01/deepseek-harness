@@ -415,3 +415,60 @@
   font-size: 12px;
   line-height: 15px;
 }
+
+/* Inline prompt editing in UserStyleBubble */
+.editBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 280px;
+  background: var(--dsw-specific-bubble);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 16px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.editField {
+  display: grid;
+  min-width: 0;
+}
+
+.editField > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--dsh-content-font-size, 14px);
+  line-height: calc(22px + var(--dsh-content-font-delta, 0px));
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.editMirror {
+  visibility: hidden;
+  pointer-events: none;
+  max-height: 300px;
+  overflow: hidden;
+}
+
+.editTextarea {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  resize: none;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.editActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}

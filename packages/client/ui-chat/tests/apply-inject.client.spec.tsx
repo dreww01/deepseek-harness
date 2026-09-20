@@ -133,6 +133,38 @@ describe('Chat inject API', () => {
     await b.runtime.dispose()
   })
 
+  it('editAndRestart stops running session, forks or creates child, opens child, and sends prompt', async () => {
+    const b = await bench()
+    const { injected } = b.chatViewApi(b.rootReference)
+
+    await injected.editAndRestart({ atSeq: 10 }, 'updated prompt text')
+    expect(b.openSession).toHaveBeenCalledWith(ROOT)
+    expect(b.session.prompt).toHaveBeenCalledWith([{ type: 'text', text: 'updated prompt text' }], 'queue')
+
+    // When session is running, it cancels before branching
+    const runningSession = sessionFakeFor()
+    await b.runtime.sessions.add({
+      id: 'running-1' as SessionId,
+      summary: { title: 'Run', displayTitle: 'Run', cwd: '/proj' },
+      session: runningSession,
+    })
+    const runningRef = b.runtime.sessions.retain('running-1' as SessionId)
+    await runningRef.ready
+    vi.spyOn(runningRef.binding.session, 'getSnapshot').mockReturnValue({ running: true } as never)
+    const { injected: runningInjected } = b.chatViewApi(runningRef)
+
+    await runningInjected.editAndRestart({ atSeq: 5 }, 'steered text')
+    expect(runningSession.cancel).toHaveBeenCalledOnce()
+    expect(b.openSession).toHaveBeenCalledWith('running-1')
+
+    // Turn 1 case: atSeq is undefined, creates new session
+    b.runtime.sessions.stubCreate(async () => ROOT)
+    await injected.editAndRestart({}, 'first turn edit')
+    expect(b.session.prompt).toHaveBeenCalledWith([{ type: 'text', text: 'first turn edit' }], 'queue')
+
+    await b.runtime.dispose()
+  })
+
   it('addresses file paths under the Session\'s scope and opens them in the right Sidebar', async () => {
     const b = await bench()
     const { injected } = b.chatViewApi(b.rootReference)

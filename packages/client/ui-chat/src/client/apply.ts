@@ -170,6 +170,39 @@ export function apply(ctx: Context): void {
                 // Fork or child-title failure leaves the source view unchanged.
               })
           },
+          editAndRestart: async (opts, newText) => {
+            const binding = ctx.sessions.binding(sessionId)
+            if (binding?.session.getSnapshot().running) {
+              try {
+                await binding.session.cancel()
+              } catch {
+                // Ignore cancel failure and proceed.
+              }
+            }
+            let childId: SessionId
+            if (opts.atSeq !== undefined) {
+              childId = await ctx.sessions.fork({ sessionId, atSeq: opts.atSeq, increaseTitle: true })
+            } else {
+              const summary = ctx.sessions.list.getSnapshot().byId[sessionId]
+              const workspaces = ctx.get('workspaces') as {
+                list?: { getSnapshot(): { items: { workspaceId?: unknown; sessionIds: string[] }[] } }
+              } | undefined
+              const workspaceId = workspaces?.list?.getSnapshot().items
+                .find(item => item.sessionIds.includes(sessionId))?.workspaceId as never
+              childId = await ctx.sessions.create({
+                ...(workspaceId !== undefined ? { workspaceId } : {}),
+                ...(summary?.cwd !== undefined ? { cwd: summary.cwd } : {}),
+              })
+            }
+            ctx.uiWorkspace.openSession(childId)
+            const ref = ctx.sessions.retain(childId, { source: 'controllerOperation' })
+            try {
+              await ref.ready
+              await ref.binding.session.prompt([{ type: 'text', text: newText }], 'queue')
+            } finally {
+              ref.release()
+            }
+          },
         }
       },
     }, ChatView)

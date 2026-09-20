@@ -1,8 +1,8 @@
-import { Fragment, memo, useEffect, useMemo, useState } from 'react'
+import { Fragment, memo, useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PendingSubmission } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { MessageImageSource } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { fileExtension, FileTypeIcon, fileSizeText, IconChevronDownOutline14, JsonBlock, projectUserText, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, fileExtension, FileTypeIcon, fileSizeText, IconChevronDownOutline14, JsonBlock, projectUserText, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewSlotProps } from '../contract/slots.ts'
 import type { ModelRetryNode, TurnErrorNode, UserMessageNode } from '../contract/snapshot.ts'
 import { CompactionItem } from './CompactionItem.tsx'
@@ -166,13 +166,14 @@ function TurnMaxTokensItem({ t }: {
 
 /** Right-aligned bubble shared by user and steering rows. */
 function UserStyleBubble({
-  content, renderMessageImages, actions, pending = false, echo = false, referenceLabels = [], skillNames = [],
+  content, renderMessageImages, actions, onEditRestart, pending = false, echo = false, referenceLabels = [], skillNames = [],
   previewAttachments, references, t,
 }: {
   content: readonly unknown[]
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
-  /** Optional IconActions (or similar) below the bubble; receives the joined text. */
-  actions?: (text: string) => ReactNode
+  /** Optional IconActions (or similar) below the bubble; receives the joined text and onEdit callback. */
+  actions?: (text: string, onEdit?: () => void) => ReactNode
+  onEditRestart?: ((newText: string) => Promise<void>) | undefined
   /** Whether this is the Host-authoritative pre-admission steering projection. */
   pending?: boolean
   /** Whether this is a local submission echo (invisible marker; the echo renders exactly like its durable replacement). */
@@ -190,10 +191,124 @@ function UserStyleBubble({
   const attachments = previewAttachments ?? contentAttachments
   const compactImages = attachments.length > 1
   const [expanded, setExpanded] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editText, setEditText] = useState(text)
+  const [isSending, setIsSending] = useState(false)
+
+  useEffect(() => {
+    if (!isEditing) setEditText(text)
+  }, [text, isEditing])
+
+  const handleStartEdit = useCallback(() => {
+    setEditText(text)
+    setIsEditing(true)
+  }, [text])
+
+  const handleCancel = useCallback(() => {
+    setIsEditing(false)
+    setEditText(text)
+  }, [text])
+
+  const handleSend = useCallback(async () => {
+    const trimmed = editText.trim()
+    if (trimmed === '' || isSending || onEditRestart === undefined) return
+    setIsSending(true)
+    try {
+      await onEditRestart(trimmed)
+      setIsEditing(false)
+    } catch {
+      // Keep edit mode open on failure so the user does not lose their input.
+    } finally {
+      setIsSending(false)
+    }
+  }, [editText, isSending, onEditRestart])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      handleCancel()
+    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      void handleSend()
+    }
+  }, [handleCancel, handleSend])
+
   const preview = useMemo(() => truncateMessageWords(text), [text])
   const displayedText = preview.truncated && !expanded ? preview.text : text
   const truncated = (total: number): string => t('json.truncated', { total })
   const showBubble = text !== '' || rest.length > 0
+
+  if (isEditing) {
+    return (
+      <div
+        className={css.userRow}
+        data-pending-steering={pending || undefined}
+        data-submission-echo={echo || undefined}
+      >
+        <div className={css.userStack}>
+          {attachments.length > 0 && (
+            <div className={css.attachmentRow} data-message-attachments>
+              {attachments.map((attachment, index) => attachment.type === 'image'
+                ? (
+                  <Fragment key={`image:${index}`}>
+                    {renderMessageImages({
+                      images: [attachment.image],
+                      align: 'end',
+                      compact: compactImages,
+                    })}
+                  </Fragment>
+                )
+                : (
+                  <span key={`file:${index}`} className={css.fileCard} title={attachment.file.name}>
+                    <FileTypeIcon path={attachment.file.name} className={css.fileIcon} />
+                    <span className={css.fileContent}>
+                      <span className={css.fileName}>{attachment.file.name}</span>
+                      <span className={css.fileMeta}>
+                        {[fileExtension(attachment.file.name).toUpperCase().slice(0, 8), fileSizeText(attachment.file.bytes)]
+                          .filter(Boolean).join(' ')}
+                      </span>
+                    </span>
+                  </span>
+                ))}
+            </div>
+          )}
+          <div className={css.editBox}>
+            <div className={css.editField}>
+              <div aria-hidden className={css.editMirror}>{`${editText}\n`}</div>
+              <textarea
+                autoFocus
+                className={css.editTextarea}
+                value={editText}
+                disabled={isSending}
+                rows={1}
+                onChange={e => setEditText(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+            <div className={css.editActions}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isSending}
+                onClick={handleCancel}
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={isSending || editText.trim() === ''}
+                onClick={() => { void handleSend() }}
+              >
+                {t('message.send')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className={css.userRow}
@@ -248,7 +363,7 @@ function UserStyleBubble({
           </div>
         )}
       </div>
-      {actions?.(text)}
+      {actions?.(text, onEditRestart !== undefined ? handleStartEdit : undefined)}
     </div>
   )
 }
@@ -338,9 +453,16 @@ export function PendingSubmissionBubble({ submission, renderMessageImages, t }: 
 
 /** User and admitted-steering keyed Chat renderer. */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
-  node, renderMessageImages, openFile, openSkill, t,
+  node, renderMessageImages, openFile, openSkill, onEditRestart, t,
 }: ChatNodeViewProps<'user' | 'steering'>) {
   const data = node.data
+  const handleEditRestart = useMemo(() => {
+    if (node.kind !== 'user' || onEditRestart === undefined) return undefined
+    return async (newText: string) => {
+      await onEditRestart(node, newText)
+    }
+  }, [node, onEditRestart])
+
   return (
     <UserStyleBubble
       content={data.content}
@@ -349,11 +471,13 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
       {...data.referenceLabels === undefined ? {} : { referenceLabels: data.referenceLabels }}
       {...data.skillNames === undefined ? {} : { skillNames: data.skillNames }}
       t={t}
-      actions={text => (
+      onEditRestart={handleEditRestart}
+      actions={(text, onEdit) => (
         <MessageIconActions
           text={text}
           time={data.time}
           clock="start"
+          onEdit={onEdit}
           className={css.actions}
           t={t}
         />

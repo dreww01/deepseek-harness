@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import {
-  IconBranchOutline16, IconCheckOutline16, IconCopyOutline16, Tooltip, writeClipboard,
+  IconBranchOutline16, IconCheckOutline16, IconCopyOutline16, IconEditOutline16, Tooltip, writeClipboard,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import { formatMessageClock } from './message-chrome.ts'
@@ -17,6 +17,8 @@ export interface MessageIconActionsProps {
   time?: number | undefined
   /** Clock before icons (user) or after (assistant). */
   clock: 'start' | 'end'
+  /** Edit callback; omission hides the edit action. */
+  onEdit?: (() => void) | undefined
   /** Fork the session at this message; omission hides the branch action. */
   onBranch?: (() => void) | undefined
   /** The message is not a completed transcript tail, so branch stays visible but unavailable. */
@@ -43,7 +45,7 @@ export interface MessageIconActionsProps {
  * @returns The actions row element.
  */
 export function MessageIconActions({
-  text, time, clock, onBranch, branchUnavailable = false, className,
+  text, time, clock, onEdit, onBranch, branchUnavailable = false, className,
   extraActions, usageAction, t,
 }: MessageIconActionsProps) {
   const day = useCalendarDay()
@@ -87,6 +89,18 @@ export function MessageIconActions({
           {copied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}
         </button>
       </Tooltip>
+      {onEdit !== undefined && (
+        <Tooltip label={t('message.edit')} side="bottom">
+          <button
+            type="button"
+            className={css.action}
+            aria-label={t('message.edit')}
+            onClick={onEdit}
+          >
+            <IconEditOutline16 />
+          </button>
+        </Tooltip>
+      )}
       {extraActions}
       {onBranch !== undefined && (
         <Tooltip label={branchUnavailable ? t('message.branchUnavailable') : t('message.branch')} side="bottom">

@@ -84,6 +84,8 @@ export interface ChatNodeOwnerProps {
   openFile: (path: string, options?: OpenFileOptions) => void
   inspectCall: (callId: ToolCallId) => void
   forkAt: (seq: number) => void
+  /** Edit a user prompt and restart the conversation from before that turn. */
+  onEditRestart?: ((node: ChatConversationViewNode, newText: string) => Promise<void>) | undefined
   /**
    * Session-authorized image loader, down-threaded from the Chat view so a
    * chat-node renderer can render the attachment presentation slot directly
@@ -154,6 +156,8 @@ export interface ChatViewInjected {
     read: () => ChatScrollPosition | null
   }
   forkAt: (seq: number) => void
+  /** Edit a user prompt and restart the conversation from before that turn. */
+  editAndRestart: (opts: { atSeq?: number | undefined }, newText: string) => Promise<void>
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
 }
 
