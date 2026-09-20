@@ -1636,6 +1636,87 @@ describe('ChatView', () => {
     expect(view.getByText('private analysis')).toBeTruthy()
   })
 
+  it('keeps the whole chat visible and operational when clicking to toggle AI reasoning', () => {
+    const final = {
+      ...assistant(3, 'final answer', 1, 1),
+      blocks: [
+        { kind: 'reasoning' as const, text: 'model thinking tokens' },
+        { kind: 'text' as const, text: 'final answer' },
+      ],
+    }
+    const h = makeHarness({
+      nodes: [user(1, 'my original prompt'), final],
+      turnEnds: new Map([[1, 4]]),
+    })
+    const view = render(<h.ChatView {...h.props} />)
+
+    // Verify initial chat elements exist
+    expect(view.getByText('my original prompt')).toBeTruthy()
+    expect(view.getByText('final answer')).toBeTruthy()
+    const editBtn = view.getByRole('button', { name: '编辑' })
+    expect(editBtn).toBeTruthy()
+
+    // Toggle reasoning open (clicking the down arrow / disclosure)
+    const toggle = view.getByRole('button', { name: '已思考' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(toggle)
+
+    // Chat remains completely visible, reasoning is revealed
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(view.getByText('model thinking tokens')).toBeTruthy()
+    expect(view.getByText('my original prompt')).toBeTruthy()
+    expect(view.getByText('final answer')).toBeTruthy()
+    expect(view.getByRole('button', { name: '编辑' })).toBeTruthy()
+
+    // Toggle reasoning closed
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(view.getByText('my original prompt')).toBeTruthy()
+    expect(view.getByText('final answer')).toBeTruthy()
+
+    // Verify edit & restart still functions cleanly
+    fireEvent.click(view.getByRole('button', { name: '编辑' }))
+    const textarea = view.getByRole('textbox')
+    expect(textarea).toBeTruthy()
+    fireEvent.change(textarea, { target: { value: 'my edited prompt' } })
+    fireEvent.click(view.getByRole('button', { name: '发送' }))
+    expect(h.editAndRestart).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves user messages and allows edit restart when expanding multi-step reasoning process', () => {
+    const first = reasoningAssistant(2, 'analyzing system state', 1, 1)
+    const second = assistant(4, 'completed task output', 1, 2)
+    const h = makeHarness({
+      nodes: [user(1, 'initial instruction'), first, toolResult(3, 'tool-a'), second],
+      turnTimings: new Map([[1, { startTime: 1_000, endTime: 5_000 }]]),
+      turnEnds: new Map([[1, 5]]),
+    })
+    const view = render(<h.ChatView {...h.props} />)
+
+    expect(view.getByText('initial instruction')).toBeTruthy()
+    expect(view.getByText('completed task output')).toBeTruthy()
+
+    const toggle = view.getByRole('button', { name: '1 次工具调用' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+
+    // Click down arrow to expand reasoning / process
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+
+    // Entire chat remains visible (no ReferenceError or disappearing chat)
+    expect(view.getByText('initial instruction')).toBeTruthy()
+    expect(view.getByText('completed task output')).toBeTruthy()
+    expect(view.getByText('analyzing system state')).toBeTruthy()
+
+    // User edit action is present and works
+    const editBtn = view.getByRole('button', { name: '编辑' })
+    fireEvent.click(editBtn)
+    const textarea = view.getByRole('textbox')
+    fireEvent.change(textarea, { target: { value: 'new modified instruction' } })
+    fireEvent.click(view.getByRole('button', { name: '发送' }))
+    expect(h.editAndRestart).toHaveBeenCalledTimes(1)
+  })
+
   it('folds a completed Turn even while the reader is away from the tail', () => {
     const first = assistant(2, 'first answer', 1, 1)
     const h = makeHarness({ nodes: [user(1, 'question'), first], running: true })

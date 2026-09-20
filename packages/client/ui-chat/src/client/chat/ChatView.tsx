@@ -249,7 +249,7 @@ export function ChatView({
     openView('trajectory', callId)
   }, [openView])
   const onEditRestart = useCallback(async (node: ChatConversationViewNode, newText: string) => {
-    const turn = node.location?.kind === 'turn' || node.location?.kind === 'step'
+    const turn = node.location.kind === 'turn' || node.location.kind === 'step'
       ? node.location.turn.turn
       : undefined
     const prevTurnEndSeq = turn !== undefined && turn > 1
